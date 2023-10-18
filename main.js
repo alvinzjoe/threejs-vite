@@ -16,7 +16,7 @@ const renderer = new THREE.WebGLRenderer({
 });
 renderer.xr.enabled = true;
 
-document.body.appendChild( VRButton.createButton( renderer ) );
+document.body.appendChild(VRButton.createButton(renderer));
 
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -261,11 +261,11 @@ function animate() {
     }
 };
 
-renderer.setAnimationLoop( function () {
+renderer.setAnimationLoop(function () {
 
-	renderer.render( scene, camera );
+    renderer.render(scene, camera);
 
-} );
+});
 
 animate();
 
@@ -278,3 +278,39 @@ window.addEventListener('keydown', (event) => {
 });
 
 window.addEventListener('pointermove', onPointerMove);
+
+let xrButton = document.getElementById('VRButton');
+
+xrButton.addEventListener('click', () => {
+    if (!xrSession) {
+        navigator.xr.requestSession('immersive-vr')
+            .then((session) => {
+                xrSession = session;
+                xrSession.addEventListener('end', onXRSessionEnd);
+
+                // Begin rendering to the XR display
+                xrSession.requestReferenceSpace('local')
+                    .then((referenceSpace) => {
+                        xrReferenceSpace = referenceSpace;
+                        xrSession.updateRenderState({ baseLayer: new XRWebGLLayer(xrSession, gl) });
+                        xrSession.requestAnimationFrame(onXRFrame);
+                    });
+            })
+            .catch((error) => {
+                console.log('Failed to start XR session: ', error);
+            });
+    } else {
+        xrSession.end();
+    }
+});
+function onXRFrame(time, frame) {
+    // Update your scene and camera based on user head movement or controller input
+    // Render your scene
+    renderer.render(scene, camera);
+    xrSession.requestAnimationFrame(onXRFrame);
+}
+
+function onXRSessionEnd() {
+    // Clean up resources and reset your scene
+    xrSession = null;
+}
