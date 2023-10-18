@@ -1,57 +1,71 @@
 import './style.css';
 
 import * as THREE from 'three';
-
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-
+import { InteractionManager } from 'three.interactive';
+import { VRButton } from 'three/addons/webxr/VRButton.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { GUI } from 'dat.gui'
 
 const scene = new THREE.Scene();
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
 const renderer = new THREE.WebGLRenderer({
-  canvas: document.getElementById("app")
-})
+    canvas: document.getElementById("app")
+});
+renderer.xr.enabled = true;
+
+document.body.appendChild( VRButton.createButton( renderer ) );
 
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
-camera.position.z=30;
+camera.position.z = 30;
+
+const interactionManager = new InteractionManager(
+    renderer,
+    camera,
+    renderer.domElement
+);
+
 
 const geometry = new THREE.TorusGeometry(10, 3, 16, 100);
-const material = new THREE.MeshStandardMaterial({ color: "#ff6347"});
+const material = new THREE.MeshStandardMaterial({ color: "#ff6347" });
 const torus = new THREE.Mesh(geometry, material);
 scene.add(torus);
 
 const geometryBox = new THREE.BoxGeometry(5, 5);
-const materialBox = new THREE.MeshStandardMaterial({color: "green"});
+const materialBox = new THREE.MeshStandardMaterial({ color: "green" });
 const meshBox = new THREE.Mesh(geometryBox, materialBox);
 meshBox.position.set(-20, 10, 0)
 meshBox.rotateY(-90);
 scene.add(meshBox);
+interactionManager.add(meshBox);
+meshBox.addEventListener('click', (event) => {
+    console.log("box clicked");
+});
 
-const geometrySphere = new THREE.SphereGeometry( 2, 58, 30 ); 
-const materialSphere = new THREE.MeshStandardMaterial( { color: "blue", wireframe: false} ); 
-const sphere = new THREE.Mesh( geometrySphere, materialSphere ); 
-sphere.position.set(5,0,15)
-scene.add( sphere );
+const geometrySphere = new THREE.SphereGeometry(2, 58, 30);
+const materialSphere = new THREE.MeshStandardMaterial({ color: "blue", wireframe: false });
+const sphere = new THREE.Mesh(geometrySphere, materialSphere);
+sphere.position.set(5, 0, 15)
+scene.add(sphere);
 
-const video = document.getElementById( 'video' );
+const video = document.getElementById('video');
 video.play();
-const videoTexture = new THREE.VideoTexture( video );
+const videoTexture = new THREE.VideoTexture(video);
 videoTexture.colorSpace = THREE.SRGBColorSpace;
 const planeGeometry = new THREE.PlaneGeometry(16, 9);
 const planeMaterial = new THREE.MeshBasicMaterial({ map: videoTexture });
-const plane = new THREE.Mesh( planeGeometry, planeMaterial );
+const plane = new THREE.Mesh(planeGeometry, planeMaterial);
 plane.position.set(25, 4.5, 0)
 scene.add(plane);
 
 const pointLight = new THREE.PointLight("#ffffff", 100);
-pointLight.position.set(0,0,0)
+pointLight.position.set(0, 0, 0)
 
 const pointLightBlack = new THREE.PointLight("yellow", 100);
-pointLightBlack.position.set(5,1,20)
+pointLightBlack.position.set(5, 1, 20)
 
 const ambientLight = new THREE.AmbientLight("#ffffff");
 scene.add(ambientLight, pointLight, pointLightBlack);
@@ -61,6 +75,23 @@ const gridHelper = new THREE.GridHelper(200, 50);
 scene.add(lightHelper, gridHelper);
 
 const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+
+
+
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+
+function onPointerMove(event) {
+
+    // calculate pointer position in normalized device coordinates
+    // (-1 to +1) for both components
+
+    pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+    pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+}
 
 //GLTF
 const gui = new GUI()
@@ -115,7 +146,7 @@ gltfLoader.load(
                             'models/vanguard@goofyrunning.glb',
                             (gltf) => {
                                 console.log('loaded goofyrunning')
-                                ;(gltf).animations[0].tracks.shift() //delete the specific track that moves the object forward while running
+                                    ; (gltf).animations[0].tracks.shift() //delete the specific track that moves the object forward while running
                                 const animationAction = mixer.clipAction(
                                     (gltf).animations[0]
                                 )
@@ -166,56 +197,84 @@ function onWindowResize() {
 }
 
 const animations = {
-  default: function () {
-      setAction(animationActions[0])
-  },
-  samba: function () {
-      setAction(animationActions[1])
-  },
-  bellydance: function () {
-      setAction(animationActions[2])
-  },
-  goofyrunning: function () {
-      setAction(animationActions[3])
-  },
+    default: function () {
+        setAction(animationActions[0])
+    },
+    samba: function () {
+        setAction(animationActions[1])
+    },
+    bellydance: function () {
+        setAction(animationActions[2])
+    },
+    goofyrunning: function () {
+        setAction(animationActions[3])
+    },
 }
 
 const setAction = (toAction) => {
-  if (toAction != activeAction) {
-      lastAction = activeAction
-      activeAction = toAction
-      //lastAction.stop()
-      lastAction.fadeOut(1)
-      activeAction.reset()
-      activeAction.fadeIn(1)
-      activeAction.play()
-  }
+    if (toAction != activeAction) {
+        lastAction = activeAction
+        activeAction = toAction
+        //lastAction.stop()
+        lastAction.fadeOut(1)
+        activeAction.reset()
+        activeAction.fadeIn(1)
+        activeAction.play()
+    }
 }
 const clock = new THREE.Clock()
 //GLTF
 const velocity = new THREE.Vector3(0.2, 0, 0); // Adjust the values to control the speed and direction.
 
 function animate() {
-  requestAnimationFrame(animate);
+    requestAnimationFrame(animate);
 
-  torus.rotation.x += 0.005;
-  torus.rotation.y += 0.005;
-  torus.rotation.z += 0.005;
+    torus.rotation.x += 0.005;
+    torus.rotation.y += 0.005;
+    torus.rotation.z += 0.005;
 
-  controls.update();
+    controls.update();
 
-  if (modelReady) mixer.update(clock.getDelta())
+    if (modelReady) mixer.update(clock.getDelta())
 
-  renderer.render(scene, camera);
+    // update the picking ray with the camera and pointer position
+    raycaster.setFromCamera(pointer, camera);
 
-  // Update the position of the mesh based on its velocity
-  meshBox.position.add(velocity);
+    // calculate objects intersecting the picking ray
+    const intersects = raycaster.intersectObjects(scene.children);
 
-  if (meshBox.position.x >= 1) {
-    velocity.x = -0.02; // Reverse direction
-  } else if (meshBox.position.x <= -1) {
-    velocity.x = 0.02; // Reverse direction
-  }
-}
+    for (let i = 0; i < intersects.length; i++) {
+        // console.log(intersects);
+        // intersects[i].object.material.color.set(0xff0000);
+
+    }
+
+    renderer.render(scene, camera);
+
+    // Update the position of the mesh based on its velocity
+    meshBox.position.add(velocity);
+
+    if (meshBox.position.x >= 1) {
+        velocity.x = -0.02; // Reverse direction
+    } else if (meshBox.position.x <= -1) {
+        velocity.x = 0.02; // Reverse direction
+    }
+};
+
+renderer.setAnimationLoop( function () {
+
+	renderer.render( scene, camera );
+
+} );
 
 animate();
+
+window.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowUp') {
+        // Move the character forward
+        console.log('arrow up')
+    }
+    // Add more key-based interactions as needed
+});
+
+window.addEventListener('pointermove', onPointerMove);
