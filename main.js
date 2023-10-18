@@ -282,6 +282,7 @@ window.addEventListener('pointermove', onPointerMove);
 let xrSession = null;
 let xrReferenceSpace = null;
 let xrButton = document.getElementById('VRButton2');
+const xrContainer = document.getElementById('xr-container');
 xrContainer.appendChild(renderer.domElement);
 
 // Function to handle XR session initiation
