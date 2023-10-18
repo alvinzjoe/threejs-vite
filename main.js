@@ -279,38 +279,56 @@ window.addEventListener('keydown', (event) => {
 
 window.addEventListener('pointermove', onPointerMove);
 
-let xrButton = document.getElementById('VRButton');
+let xrSession = null;
+let xrReferenceSpace = null;
+let xrButton = document.getElementById('VRButton2');
+xrContainer.appendChild(renderer.domElement);
 
-xrButton.addEventListener('click', () => {
+// Function to handle XR session initiation
+async function onXRButtonClick() {
     if (!xrSession) {
-        navigator.xr.requestSession('immersive-vr')
-            .then((session) => {
-                xrSession = session;
-                xrSession.addEventListener('end', onXRSessionEnd);
-
-                // Begin rendering to the XR display
-                xrSession.requestReferenceSpace('local')
-                    .then((referenceSpace) => {
-                        xrReferenceSpace = referenceSpace;
-                        xrSession.updateRenderState({ baseLayer: new XRWebGLLayer(xrSession, gl) });
-                        xrSession.requestAnimationFrame(onXRFrame);
-                    });
-            })
-            .catch((error) => {
-                console.log('Failed to start XR session: ', error);
+        try {
+            xrSession = await navigator.xr.requestSession('immersive-vr', {
+                requiredFeatures: ['local'],
             });
+
+            xrSession.addEventListener('end', onXRSessionEnd);
+
+            xrReferenceSpace = await xrSession.requestReferenceSpace('local');
+
+            // Set up XRWebGLLayer for rendering to the XR device
+            const xrLayer = new XRWebGLLayer(xrSession, renderer);
+            xrSession.updateRenderState({ baseLayer: xrLayer });
+
+            // Enter the XR session
+            await xrSession.requestAnimationFrame(onXRFrame);
+            await xrSession.requestReferenceSpace('local');
+            await xrSession.end();
+        } catch (error) {
+            console.error('Failed to start XR session:', error);
+        }
     } else {
         xrSession.end();
     }
-});
+}
+
+// Function to handle XR frames
 function onXRFrame(time, frame) {
-    // Update your scene and camera based on user head movement or controller input
-    // Render your scene
-    renderer.render(scene, camera);
+    const pose = frame.getViewerPose(xrReferenceSpace);
+    if (pose) {
+        // Update your Three.js scene based on XR pose and input
+        // Render your scene
+        renderer.render(scene, camera, pose.views[0].viewMatrix, pose.views[0].projectionMatrix);
+    }
+
     xrSession.requestAnimationFrame(onXRFrame);
 }
 
+// Function to handle XR session end
 function onXRSessionEnd() {
-    // Clean up resources and reset your scene
     xrSession = null;
+    xrButton.textContent = 'Enter XR';
 }
+
+// Add a click event listener to trigger the XR session
+xrButton.addEventListener('click', onXRButtonClick);
